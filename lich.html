@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lịch Vạn Niên - Âm Dương</title>
+    <style>
+        :root {
+            --primary-color: #e53935; /* Màu đỏ lịch */
+            --text-color: #333;
+            --bg-color: #f4f4f9;
+            --cell-bg: #fff;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        .calendar-container {
+            width: 100%;
+            max-width: 450px;
+            background: var(--cell-bg);
+            border-radius: 15px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        /* Header */
+        .calendar-header {
+            background: var(--primary-color);
+            color: white;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .month-year {
+            font-size: 1.5rem;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .nav-btn {
+            background: none;
+            border: 1px solid rgba(255,255,255,0.5);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1.2rem;
+            transition: 0.2s;
+        }
+
+        .nav-btn:hover {
+            background: rgba(255,255,255,0.2);
+        }
+
+        /* Days of Week */
+        .weekdays {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            background: #eee;
+            padding: 10px 0;
+            text-align: center;
+            font-weight: bold;
+            color: #666;
+        }
+
+        .weekdays div:first-child { color: var(--primary-color); } /* Chủ nhật đỏ */
+
+        /* Calendar Grid */
+        .days-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            padding: 10px;
+            gap: 5px;
+        }
+
+        .day {
+            aspect-ratio: 1/1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: background 0.2s;
+            border: 1px solid transparent;
+        }
+
+        .day:hover {
+            background-color: #f0f0f0;
+            border-color: #ddd;
+        }
+
+        .day.today {
+            background-color: #fff3e0;
+            border: 1px solid #ffb74d;
+        }
+
+        .day.empty {
+            pointer-events: none;
+        }
+
+        /* Solar Date Styling */
+        .solar-date {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: var(--text-color);
+        }
+
+        .day:nth-child(7n + 1) .solar-date { color: var(--primary-color); } /* Chủ nhật */
+
+        /* Lunar Date Styling */
+        .lunar-date {
+            font-size: 0.75rem;
+            color: #757575;
+            margin-top: 2px;
+        }
+        
+        /* Special Lunar Days (1st and 15th) */
+        .lunar-highlight {
+            color: var(--primary-color);
+            font-weight: bold;
+        }
+
+        /* Footer Info */
+        .footer-info {
+            padding: 15px;
+            border-top: 1px solid #eee;
+            text-align: center;
+            font-size: 0.9rem;
+            color: #666;
+        }
+        
+        #selected-date-info {
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="calendar-container">
+        <div class="calendar-header">
+            <button class="nav-btn" id="prevMonth">&lt;</button>
+            <div class="month-year" id="monthYearDisplay"></div>
+            <button class="nav-btn" id="nextMonth">&gt;</button>
+        </div>
+
+        <div class="weekdays">
+            <div>CN</div>
+            <div>T2</div>
+            <div>T3</div>
+            <div>T4</div>
+            <div>T5</div>
+            <div>T6</div>
+            <div>T7</div>
+        </div>
+
+        <div class="days-grid" id="daysGrid">
+            <!-- Các ngày sẽ được render vào đây bằng JS -->
+        </div>
+
+        <div class="footer-info">
+            <span id="selected-date-info">Hôm nay</span>
+        </div>
+    </div>
+
+    <script>
+        // Cấu hình
+        const date = new Date();
+        let currentMonth = date.getMonth();
+        let currentYear = date.getFullYear();
+
+        const monthYearDisplay = document.getElementById('monthYearDisplay');
+        const daysGrid = document.getElementById('daysGrid');
+        const selectedInfo = document.getElementById('selected-date-info');
+
+        // Hàm lấy ngày Âm lịch sử dụng Intl API (Native Browser Support)
+        function getLunarDate(solarDate) {
+            // Sử dụng lịch 'chinese' (gần giống nhất với lịch Việt Nam được hỗ trợ native)
+            // Lưu ý: Lịch Chinese và Vietnamese lệch nhau 1 ngày ở một số năm hiếm do múi giờ.
+            // Để chính xác 100% cho mục đích phong thủy chuyên sâu, cần thư viện như 'lunisolar'.
+            // Nhưng với ứng dụng cơ bản, cách này rất nhẹ và nhanh.
+            const formatter = new Intl.DateTimeFormat('vi-VN', {
+                calendar: 'chinese',
+                day: 'numeric',
+                month: 'numeric',
+                year: 'numeric'
+            });
+            
+            const parts = formatter.formatToParts(solarDate);
+            const lunarDay = parts.find(p => p.type === 'day').value;
+            const lunarMonth = parts.find(p => p.type === 'month').value;
+            const lunarYear = parts.find(p => p.type === 'relatedYear').value; // Năm can chi
+
+            return { day: lunarDay, month: lunarMonth, year: lunarYear };
+        }
+
+        // Hàm render lịch
+        function renderCalendar() {
+            date.setDate(1);
+            const firstDayIndex = new Date(currentYear, currentMonth, 1).getDay();
+            const lastDay = new Date(currentYear, currentMonth + 1, 0).getDate();
+            
+            // Cập nhật Header
+            monthYearDisplay.innerText = `THÁNG ${currentMonth + 1} - ${currentYear}`;
+            
+            // Xóa lịch cũ
+            daysGrid.innerHTML = "";
+
+            // Tạo khoảng trống cho những ngày đầu tháng (nếu tháng không bắt đầu vào CN)
+            for (let x = 0; x < firstDayIndex; x++) {
+                const emptyDiv = document.createElement("div");
+                emptyDiv.classList.add("day", "empty");
+                daysGrid.appendChild(emptyDiv);
+            }
+
+            // Tạo các ngày trong tháng
+            for (let i = 1; i <= lastDay; i++) {
+                const cell = document.createElement("div");
+                cell.classList.add("day");
+
+                // Kiểm tra nếu là hôm nay
+                if (i === new Date().getDate() && 
+                    currentMonth === new Date().getMonth() && 
+                    currentYear === new Date().getFullYear()) {
+                    cell.classList.add("today");
+                    updateFooterInfo(i, currentMonth, currentYear); // Mặc định hiển thị hôm nay
+                }
+
+                // Tính ngày âm
+                const currentSolarDate = new Date(currentYear, currentMonth, i);
+                const lunarObj = getLunarDate(currentSolarDate);
+
+                // HTML nội dung ô ngày
+                const solarSpan = document.createElement("div");
+                solarSpan.classList.add("solar-date");
+                solarSpan.innerText = i;
+
+                const lunarSpan = document.createElement("div");
+                lunarSpan.classList.add("lunar-date");
+                lunarSpan.innerText = `${lunarObj.day}/${lunarObj.month}`;
+
+                // Highlight ngày rằm và mùng 1
+                if(lunarObj.day == 1 || lunarObj.day == 15) {
+                    lunarSpan.classList.add("lunar-highlight");
+                }
+
+                cell.appendChild(solarSpan);
+                cell.appendChild(lunarSpan);
+
+                // Sự kiện click
+                cell.addEventListener('click', () => {
+                    document.querySelectorAll('.day').forEach(d => d.style.border = "1px solid transparent");
+                    cell.style.border = "1px solid var(--primary-color)";
+                    updateFooterInfo(i, currentMonth, currentYear);
+                });
+
+                daysGrid.appendChild(cell);
+            }
+        }
+
+        function updateFooterInfo(day, month, year) {
+            const solarDate = new Date(year, month, day);
+            const lunar = getLunarDate(solarDate);
+            const dayOfWeek = ["Chủ Nhật", "Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy"];
+            
+            selectedInfo.innerHTML = `
+                Dương: ${day}/${month + 1}/${year} (${dayOfWeek[solarDate.getDay()]}) <br>
+                Âm: Ngày ${lunar.day} tháng ${lunar.month} năm ${lunar.year}
+            `;
+        }
+
+        // Sự kiện nút chuyển tháng
+        document.getElementById('prevMonth').addEventListener('click', () => {
+            currentMonth--;
+            if (currentMonth < 0) {
+                currentMonth = 11;
+                currentYear--;
+            }
+            renderCalendar();
+        });
+
+        document.getElementById('nextMonth').addEventListener('click', () => {
+            currentMonth++;
+            if (currentMonth > 11) {
+                currentMonth = 0;
+                currentYear++;
+            }
+            renderCalendar();
+        });
+
+        // Khởi chạy lần đầu
+        renderCalendar();
+    </script>
+
+</body>
+</html>
