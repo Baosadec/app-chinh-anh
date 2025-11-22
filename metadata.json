@@ -1,0 +1,5 @@
+{
+  "name": "Gemini Style Remix",
+  "description": "Upload an image and reimagine it using Gemini 2.5 Flash Image generation.",
+  "requestFramePermissions": []
+}
