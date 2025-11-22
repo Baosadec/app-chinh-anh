@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import { UploadedFile, AppStatus, GeneratedImage } from './types';
 import { generateStylizedImage, removeBackground } from './services/geminiService';
 import Spinner from './components/Spinner';
@@ -18,52 +18,9 @@ const App: React.FC = () => {
   // Outputs
   const [generatedImages, setGeneratedImages] = useState<GeneratedImage[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  
-  // API Key State
-  const [hasApiKey, setHasApiKey] = useState<boolean>(false);
-  const [isCheckingKey, setIsCheckingKey] = useState<boolean>(true);
 
   // Hidden file input ref
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Check for API Key on mount
-  useEffect(() => {
-    const checkApiKey = async () => {
-      try {
-        // Check if running in an environment with window.aistudio (e.g. IDX / AI Studio)
-        if ((window as any).aistudio) {
-          const selected = await (window as any).aistudio.hasSelectedApiKey();
-          setHasApiKey(selected);
-        } else {
-          // Fallback for local development where key is in .env
-          // If we are running locally, we assume process.env.API_KEY is set
-          setHasApiKey(!!process.env.API_KEY);
-        }
-      } catch (e) {
-        console.error("Failed to check API key status", e);
-        setHasApiKey(false); 
-      } finally {
-        setIsCheckingKey(false);
-      }
-    };
-    checkApiKey();
-  }, []);
-
-  const handleSelectKey = async () => {
-    try {
-      if ((window as any).aistudio) {
-        await (window as any).aistudio.openSelectKey();
-        setHasApiKey(true);
-        setErrorMessage(null);
-      } else {
-        // Local development fallback
-        alert("Cannot select key via UI in local development. Please set API_KEY in your .env file.");
-      }
-    } catch (e) {
-      console.error("Failed to open key selection dialog", e);
-      setErrorMessage("Failed to open key selection. Please try again.");
-    }
-  };
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -131,12 +88,7 @@ const App: React.FC = () => {
       }
     } catch (error: any) {
       setStatus(AppStatus.ERROR);
-      if (error.message && error.message.includes("Requested entity was not found")) {
-        setHasApiKey(false);
-        setErrorMessage("Session expired or API key missing. Please select your key again.");
-      } else {
-        setErrorMessage(error.message || "Failed to remove background.");
-      }
+      setErrorMessage(error.message || "Failed to remove background.");
     }
   };
 
@@ -173,54 +125,12 @@ const App: React.FC = () => {
       }
     } catch (error: any) {
       setStatus(AppStatus.ERROR);
-      if (error.message && error.message.includes("Requested entity was not found")) {
-        setHasApiKey(false);
-        setErrorMessage("Session expired or API key missing. Please select your key again.");
-      } else {
-        setErrorMessage(error.message || "An error occurred during generation.");
-      }
+      setErrorMessage(error.message || "An error occurred during generation.");
     }
   };
 
   const triggerFileInput = () => fileInputRef.current?.click();
   const isProcessing = status === AppStatus.GENERATING || status === AppStatus.REMOVING_BACKGROUND || status === AppStatus.UPLOADING;
-
-  if (isCheckingKey) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <Spinner />
-      </div>
-    );
-  }
-
-  if (!hasApiKey) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
-        <div className="bg-white p-8 rounded-2xl shadow-lg max-w-md w-full text-center border border-slate-200">
-          <div className="w-16 h-16 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center mx-auto mb-6">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-8 h-8">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
-            </svg>
-          </div>
-          <h1 className="text-2xl font-bold text-slate-800 mb-3">API Key Required</h1>
-          <p className="text-slate-600 mb-8">
-            To use this app, you need a Google Gemini API Key.
-          </p>
-          { (window as any).aistudio ? (
-             <Button onClick={handleSelectKey}>
-               Select API Key
-             </Button>
-          ) : (
-             <div className="p-4 bg-yellow-50 text-yellow-800 text-sm rounded text-left">
-               <p><strong>Local Development:</strong></p>
-               <p>Please create a <code>.env</code> file in your project root and add:</p>
-               <code className="block mt-2 bg-white p-2 border border-yellow-200 rounded">API_KEY=your_api_key_here</code>
-             </div>
-          )}
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 p-4 lg:p-8">
