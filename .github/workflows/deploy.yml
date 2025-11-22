@@ -27,9 +27,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
       - name: Build
-        # Pass the secret API_KEY to the build process so vite can bundle it
-        env:
-          API_KEY: ${{ secrets.API_KEY }}
+        # API Key is already hardcoded in vite.config.ts, no env needed here
         run: npm run build
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
